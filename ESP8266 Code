@@ -1,0 +1,56 @@
+#include <ESP8266WiFi.h>
+#include <WiFiClient.h>
+
+// Wi-Fi credentials
+const char* ssid = "mugiwara";
+const char* password = "12345abc";
+
+// ThingSpeak API details
+const char* server = "api.thingspeak.com";
+const char* apiKey = "3VARQCYG0RHRNL3S";
+
+WiFiClient client;
+
+void setup() {
+  Serial.begin(9600);   // Communication with Arduino
+  WiFi.begin(ssid, password);
+  
+  Serial.println("Connecting to WiFi...");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi connected!");
+}
+
+void loop() {
+  if (Serial.available()) {
+    String data = Serial.readStringUntil('\n');
+    Serial.print("Received data: ");
+    Serial.println(data);
+
+    // Parse the received data
+    float temperature, humidity, soilMoisture, pH;
+    sscanf(data.c_str(), "%f,%f,%f,%f", &temperature, &humidity, &soilMoisture, &pH);
+
+    // Send data to ThingSpeak
+    if (client.connect(server, 80)) {
+      String url = "/update?api_key=" + String(apiKey) +
+                   "&field1=" + String(temperature) +
+                   "&field2=" + String(humidity) +
+                   "&field3=" + String(soilMoisture) +
+                   "&field4=" + String(pH);
+
+      client.print(String("GET ") + url + " HTTP/1.1\r\n" +
+                   "Host: " + server + "\r\n" +
+                   "Connection: close\r\n\r\n");
+
+      Serial.println("Data sent to ThingSpeak.");
+      client.stop();
+    } else {
+      Serial.println("Failed to connect to ThingSpeak.");
+    }
+  }
+
+  delay(10000);  // Wait before reading the next data
+}
