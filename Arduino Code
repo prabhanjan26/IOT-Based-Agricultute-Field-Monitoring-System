@@ -1,0 +1,82 @@
+#include <DHT.h>
+
+// Define pins
+#define DHTPIN 2       // Digital pin for DHT sensor
+#define DHTTYPE DHT11  // DHT 11 sensor type
+#define SOIL_PIN A2    // Analog pin for soil moisture sensor
+#define PH_PIN A0      // Analog pin for pH sensor
+
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  Serial.begin(9600);  // Communication with ESP8266
+  dht.begin();
+  pinMode(SOIL_PIN, INPUT);
+  pinMode(PH_PIN, INPUT);
+  Serial.println("Arduino Ready");
+}
+
+void loop() {
+  // Read sensor data
+  float temperature = readTemperature();
+  float humidity = readHumidity();
+  int soilMoisture = readSoilMoisture();
+  float pH = readPHValue();
+
+  // Send data to ESP8266
+  sendDataToESP8266(temperature, humidity, soilMoisture, pH);
+
+  delay(10000);  // Wait 10 seconds before next reading
+}
+
+// Function to read temperature
+float readTemperature() {
+  float temp = dht.readTemperature();
+  if (isnan(temp)) {
+    Serial.println("Error: Failed to read temperature from DHT sensor!");
+    return -1; // Return -1 if reading fails
+  }
+  return temp;
+}
+
+// Function to read humidity
+float readHumidity() {
+  float hum = dht.readHumidity();
+  if (isnan(hum)) {
+    Serial.println("Error: Failed to read humidity from DHT sensor!");
+    return -1; // Return -1 if reading fails
+  }
+  return hum;
+}
+
+// Function to read soil moisture
+int readSoilMoisture() {
+  return analogRead(SOIL_PIN);
+}
+
+// Function to read pH value
+float readPHValue() {
+  int analogValue = analogRead(PH_PIN);  // Read analog value from pH sensor
+  float voltage = analogValue * (3.3 / 1023.0);  // Convert to voltage (3.3V system)
+  float slope = -5.0;   // Adjusted slope for pH conversion
+  float offset = 23.0;  // Adjusted offset for calibration
+  float pH = slope * voltage + offset;   // Calculate pH based on adjusted slope and offset
+  return pH;
+}
+
+// Function to send data to ESP8266
+void sendDataToESP8266(float temperature, float humidity, int soilMoisture, float pH) {
+  if (temperature == -1 || humidity == -1) {
+    Serial.println("Skipping data transmission due to sensor read error.");
+    return;
+  }
+
+  // Send data in CSV format: temperature, humidity, soil moisture, pH
+  Serial.print(temperature);
+  Serial.print(",");
+  Serial.print(humidity);
+  Serial.print(",");
+  Serial.print(soilMoisture);
+  Serial.print(",");
+  Serial.println(pH); // Send data as a single line
+}
